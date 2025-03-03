@@ -1,457 +1,355 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=5.0"
-  />
-  <title>2025DKU春之声智能乐谱</title>
-  <!-- 引入 PDF.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2025 Spring Chorus Score Helper</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    /* 高端大气的界面样式 */
     :root {
-      --primary: #2c3e50;
-      --secondary: #3498db;
-      --bg-color: #f0f2f5;
-      --control-bg: rgba(255, 255, 255, 0.95);
-      --nav-bg: #ffffff;
-      --shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      --primary-color: #4a90e2;
+      --secondary-color: #50e3c2;
+      --background-color: #f0f4f8;
+      --card-bg: #ffffff;
+      --card-shadow: rgba(0, 0, 0, 0.1);
+      --modal-bg: rgba(0, 0, 0, 0.5);
+      --transition-duration: 0.3s;
+      --ripple-duration: 0.6s;
+      --font-family: 'Roboto', sans-serif;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
     body {
-      margin: 0;
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      background: var(--bg-color);
-      overscroll-behavior-y: contain;
-      color: var(--primary);
+      font-family: var(--font-family);
+      background-color: var(--background-color);
+      color: #333;
+      line-height: 1.6;
+      transition: background-color var(--transition-duration);
     }
-    #viewerContainer {
-      width: 100vw;
-      height: 100dvh;
+    header {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      padding: 20px;
+      text-align: center;
+      color: #fff;
+      box-shadow: 0 4px 6px var(--card-shadow);
       position: relative;
-      overflow-x: hidden;
-      padding-top: 50px; /* 为界面预留顶部空间 */
     }
-    .pdfPage {
-      margin: 1rem auto;
-      box-shadow: var(--shadow);
-      background: #fff;
-      transition: transform 0.2s;
+    header h1 {
+      font-size: 2em;
+      font-weight: 700;
+    }
+    /* 主题切换按钮 */
+    .theme-toggler {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      background: rgba(255,255,255,0.3);
+      border: none;
+      border-radius: 5px;
+      padding: 5px 10px;
+      cursor: pointer;
+      color: #fff;
+      font-size: 0.9em;
+      transition: background var(--transition-duration);
+    }
+    .theme-toggler:hover {
+      background: rgba(255,255,255,0.5);
+    }
+    main {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    /* 加载指示器 */
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary-color);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 50px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .card {
+      background: var(--card-bg);
+      padding: 15px 20px;
       border-radius: 8px;
+      box-shadow: 0 2px 8px var(--card-shadow);
+      transition: transform var(--transition-duration), box-shadow var(--transition-duration);
+      cursor: pointer;
+      position: relative;
       overflow: hidden;
     }
-    #controlPanel {
-      position: fixed;
-      bottom: 2rem;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 1rem;
-      background: var(--control-bg);
-      padding: 1rem;
-      border-radius: 2rem;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(12px);
-      z-index: 10;
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px var(--card-shadow);
     }
-    .controlBtn {
-      width: 3.5rem;
-      height: 3.5rem;
+    .card h2 {
+      font-size: 1.4em;
+      color: var(--primary-color);
+    }
+    /* 涟漪动画效果 */
+    .ripple {
+      position: absolute;
       border-radius: 50%;
-      background: var(--primary);
-      color: #fff;
-      border: none;
-      font-size: 1.2rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background: rgba(0, 0, 0, 0.2);
+      animation: ripple-effect var(--ripple-duration) ease-out;
+      pointer-events: none;
     }
-    .controlBtn:hover {
-      transform: scale(1.05);
-    }
-    #navPanel {
-      position: fixed;
-      top: 0;
-      left: -100%;
-      width: 80%;
-      height: 100%;
-      background: var(--nav-bg);
-      box-shadow: 4px 0 16px rgba(0, 0, 0, 0.1);
-      transition: left 0.3s;
-      padding: 2rem 1.5rem;
-      overflow-y: auto;
-      z-index: 10;
-    }
-    .navItem {
-      padding: 1rem;
-      margin: 0.5rem 0;
-      background: #f7f7f7;
-      border-radius: 0.75rem;
-      cursor: pointer;
-      transition: transform 0.2s, background 0.2s;
-    }
-    .navItem:hover {
-      background: #eaeaea;
-      transform: translateX(5px);
-    }
-    .progressBar {
-      height: 4px;
-      background: var(--secondary);
-      transition: width 0.3s ease;
-      position: fixed;
-      top: 0;
-      left: 0;
-      z-index: 20;
-    }
-    #errorMsg {
-      color: red;
-      text-align: center;
-      margin-top: 1rem;
-      font-size: 0.95rem;
-      font-weight: 500;
-    }
-    @media (min-width: 768px) {
-      #navPanel {
-        width: 320px;
-        left: -320px;
+    @keyframes ripple-effect {
+      from {
+        transform: scale(0);
+        opacity: 0.4;
       }
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
+    }
+    /* Modal 样式 */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--modal-bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity var(--transition-duration);
+    }
+    .modal-overlay.active {
+      visibility: visible;
+      opacity: 1;
+    }
+    .modal {
+      background: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 90%;
+      width: 300px;
+      text-align: center;
+      box-shadow: 0 4px 12px var(--card-shadow);
+      transform: scale(0.8);
+      transition: transform var(--transition-duration);
+    }
+    .modal-overlay.active .modal {
+      transform: scale(1);
+    }
+    .modal h3 {
+      margin-bottom: 20px;
+      color: var(--primary-color);
+    }
+    .modal .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .modal button {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      background: var(--primary-color);
+      color: #fff;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background var(--transition-duration);
+    }
+    .modal button:hover {
+      background: var(--secondary-color);
+    }
+    .modal .cancel-btn {
+      background: #aaa;
+    }
+    .modal .cancel-btn:hover {
+      background: #888;
+    }
+    /* 键盘聚焦样式 */
+    .card:focus {
+      outline: 3px solid var(--primary-color);
     }
   </style>
 </head>
 <body>
-  <!-- 进度条 -->
-  <div class="progressBar" id="loadingProgress" style="width:0%;"></div>
-  <!-- PDF显示区域 -->
-  <div id="viewerContainer"></div>
-  <!-- 控制面板 -->
-  <div id="controlPanel">
-    <button class="controlBtn" id="navToggle" aria-label="切换曲目列表">📂</button>
-    <button class="controlBtn" id="zoomOut" aria-label="缩小">﹣</button>
-    <button class="controlBtn" id="zoomIn" aria-label="放大">﹢</button>
-    <!-- 切换乐谱类型按钮（仅当同时存在五线谱和简谱时显示） -->
-    <button
-      class="controlBtn"
-      id="toggleNotation"
-      aria-label="切换简谱/五线谱"
-      style="display:none;"
-    >
-      简/五
-    </button>
+  <header>
+    <h1>2025 Spring Chorus Score Helper</h1>
+    <button class="theme-toggler" id="themeToggler" aria-label="切换主题">主题</button>
+  </header>
+  <main id="pdfContainer">
+    <!-- 显示加载指示器 -->
+    <div id="loading" class="spinner" aria-label="加载中"></div>
+  </main>
+  
+  <!-- 模态对话框，用于选择乐谱类型 -->
+  <div id="modalOverlay" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h3>请选择乐谱类型</h3>
+      <div class="btn-group" id="modalButtons">
+        <!-- 按钮将动态生成 -->
+      </div>
+      <button class="cancel-btn" id="modalCancel">取消</button>
+    </div>
   </div>
-  <!-- 导航侧栏 -->
-  <div id="navPanel">
-    <h2 style="margin-bottom: 1.5rem; color: var(--primary);">曲目列表</h2>
-    <div id="songList"></div>
-  </div>
-  <!-- 错误提示 -->
-  <div id="errorMsg"></div>
-
+  
   <script>
-    // ---------------------------
-    // 1. 如果 fetch 失败，则使用此回退清单
-    //    这里仅作示例，请自行添加/修改条目
-    // ---------------------------
-    const fallbackManifest = [
-      {
-        "name": "1. Auld Lang Syne.pdf",
-        "path": "pdfs/1. Auld Lang Syne.pdf"
-      },
-      {
-        "name": "2. Nisi Dominus.pdf",
-        "path": "pdfs/2. Nisi Dominus.pdf"
-      },
-      {
-        "name": "3. Good Luck-Babe.pdf",
-        "path": "pdfs/3. Good Luck-Babe.pdf"
-      },
-      {
-        "name": "4. 橡树.pdf",
-        "path": "pdfs/4. 橡树.pdf"
-      },
-      {
-        "name": "4. 橡树（简谱）.pdf",
-        "path": "pdfs/4. 橡树（简谱）.pdf"
-      },
-      {
-        "name": "5. Frozen.pdf",
-        "path": "pdfs/5. Frozen.pdf"
+    // 自动根据当前时间切换主题（18:00～6:00使用深色）
+    function autoTheme() {
+      const hour = new Date().getHours();
+      const themeToggler = document.getElementById('themeToggler');
+      if (hour >= 18 || hour < 6) {
+        document.body.classList.add('dark-theme');
+        document.body.style.backgroundColor = '#333';
+        document.body.style.color = '#f0f4f8';
+        themeToggler.textContent = '浅色主题';
+      } else {
+        document.body.classList.remove('dark-theme');
+        document.body.style.backgroundColor = 'var(--background-color)';
+        document.body.style.color = '#333';
+        themeToggler.textContent = '深色主题';
       }
-    ];
-
-    // 全局状态变量
-    let currentPDF = null;
-    let currentScale = 1.2;
-    let currentIndex = 0;
-    let songList = [];
-    // 当前显示乐谱类型：'wuXian' 为五线谱，'jianPu' 为简谱
-    let currentNotation = 'wuXian';
-    let resizeTimer = null;
-
-    // ---------------------------
-    // 2. 初始化：加载曲目列表并绑定事件
-    // ---------------------------
-    (async () => {
-      try {
-        songList = await fetchSongList();
-        renderSongList();
-        loadPDF(currentIndex);
-      } catch (err) {
-        // 如果 fetchSongList 抛出错误，则提示
-        showError(
-          "无法加载曲目列表：\n" +
-            "1. 如果您在本地 file:// 协议下打开，请使用回退清单或启动本地服务器。\n" +
-            "2. 若已部署服务器，请检查 manifest.json 路径是否正确。"
-        );
-        // 使用回退清单
-        songList = processFiles(fallbackManifest);
-        renderSongList();
-        loadPDF(currentIndex);
-      }
-
-      // 手势支持：左右滑动切换曲目
-      let touchStartX = 0;
-      document.addEventListener(
-        "touchstart",
-        (e) => {
-          touchStartX = e.touches[0].clientX;
-        },
-        { passive: true }
-      );
-      document.addEventListener(
-        "touchend",
-        (e) => {
-          const deltaX = e.changedTouches[0].clientX - touchStartX;
-          if (Math.abs(deltaX) > 50) {
-            deltaX > 0 ? prevSong() : nextSong();
-          }
-        },
-        { passive: true }
-      );
-
-      // 键盘支持：左右箭头切换
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowLeft") prevSong();
-        else if (e.key === "ArrowRight") nextSong();
-      });
-
-      // 控制按钮事件绑定
-      document.getElementById("navToggle").addEventListener("click", toggleNav);
-      document.getElementById("zoomOut").addEventListener("click", () =>
-        adjustZoom(0.9)
-      );
-      document.getElementById("zoomIn").addEventListener("click", () =>
-        adjustZoom(1.1)
-      );
-      document
-        .getElementById("toggleNotation")
-        .addEventListener("click", toggleNotation);
-
-      // 窗口尺寸调整时防抖处理
-      window.addEventListener("resize", () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-          if (currentPDF) loadPDF(currentIndex);
-        }, 300);
-      });
-    })();
-
-    // ---------------------------
-    // 3. 获取曲目列表
-    // ---------------------------
-    async function fetchSongList() {
-      // 若在本地 file:// 协议下，可直接抛错，走回退清单
-      if (location.protocol === "file:") {
-        throw new Error("file:// protocol not allowed fetch in many browsers.");
-      }
-      // 若在服务器或允许本地 fetch 的环境，则尝试获取 manifest.json
-      const response = await fetch("pdfs/manifest.json");
-      if (!response.ok) throw new Error("网络错误");
-      const files = await response.json();
-      return processFiles(files);
     }
-
-    // 将文件数组转换为内部的 songList 结构
-    function processFiles(files) {
-      const songs = {};
-      files.forEach((file) => {
-        // 匹配格式: "4. 橡树.pdf" 或 "4. 橡树（简谱）.pdf"
-        const match = file.name.match(/^(\d+)\.\s*(.+?)(（简谱）)?\.pdf$/i);
-        if (match) {
-          const id = parseInt(match[1]);
-          const baseName = match[2].trim();
-          const isJianpu = Boolean(match[3]);
-          if (!songs[id]) {
-            songs[id] = {
-              id: id,
-              name: baseName,
-              wuXianPath: null,
-              jianPuPath: null,
-            };
-          }
-          if (isJianpu) {
-            songs[id].jianPuPath = file.path;
-          } else {
-            songs[id].wuXianPath = file.path;
-          }
-        }
-      });
-      return Object.values(songs).sort((a, b) => a.id - b.id);
+    autoTheme();
+    
+    // 手动主题切换
+    const themeToggler = document.getElementById('themeToggler');
+    themeToggler.addEventListener('click', () => {
+      document.body.classList.toggle('dark-theme');
+      if(document.body.classList.contains('dark-theme')) {
+        document.body.style.backgroundColor = '#333';
+        document.body.style.color = '#f0f4f8';
+        themeToggler.textContent = '浅色主题';
+      } else {
+        document.body.style.backgroundColor = 'var(--background-color)';
+        document.body.style.color = '#333';
+        themeToggler.textContent = '深色主题';
+      }
+    });
+    
+    // 辅助函数：解析文件名，提取序号、歌曲名及版本信息
+    function parseFileName(fileName) {
+      // 示例格式："4. 榕树(简谱).pdf" 或 "1. Auld Lang Syne.pdf"
+      let nameWithoutExt = fileName.replace(/\.pdf$/i, "");
+      let match = nameWithoutExt.match(/^(\d+)\.\s*(.+)$/);
+      if (match) {
+        let seq = match[1];
+        let fullTitle = match[2];
+        let version = fullTitle.includes("简谱") ? "简谱" : "普通五线谱";
+        let baseTitle = fullTitle.replace(/\(简谱\)/, "").trim();
+        return { seq, baseTitle, version, fullTitle };
+      }
+      return { seq: "", baseTitle: fileName, version: "", fullTitle: fileName };
     }
-
-    // ---------------------------
-    // 4. 渲染侧边导航列表
-    // ---------------------------
-    function renderSongList() {
-      const listContainer = document.getElementById("songList");
-      listContainer.innerHTML = songList
-        .map(
-          (song, index) => `
-          <div class="navItem" data-index="${index}">
-              <div style="font-weight: 500;">${song.name}</div>
-              <div style="font-size: 0.875em; color: #666;">
-                编号：${String(song.id).padStart(2, "0")}
-              </div>
-          </div>
-      `
-        )
-        .join("");
-      Array.from(listContainer.getElementsByClassName("navItem")).forEach(
-        (item) => {
-          item.addEventListener("click", () => {
-            loadPDF(parseInt(item.getAttribute("data-index")));
-            toggleNav(); // 加载后关闭导航面板
+    
+    // 优化后的涟漪动画效果
+    function createRipple(event, element) {
+      const circle = document.createElement('span');
+      const diameter = Math.max(element.clientWidth, element.clientHeight);
+      const radius = diameter / 2;
+      circle.style.width = circle.style.height = `${diameter}px`;
+      circle.style.left = `${event.clientX - element.getBoundingClientRect().left - radius}px`;
+      circle.style.top = `${event.clientY - element.getBoundingClientRect().top - radius}px`;
+      circle.classList.add('ripple');
+      element.appendChild(circle);
+      // 根据 CSS 变量 --ripple-duration 的时间移除涟漪
+      setTimeout(() => { circle.remove(); }, 600);
+    }
+    
+    // 加载 manifest.json 并按序号分组
+    fetch('manifest.json')
+      .then(response => response.json())
+      .then(pdfFiles => {
+        let groups = {};
+        pdfFiles.forEach(item => {
+          let parsed = parseFileName(item.name);
+          let seq = parsed.seq;
+          if (!groups[seq]) {
+            groups[seq] = { baseTitle: parsed.baseTitle, versions: [] };
+          }
+          groups[seq].versions.push({ 
+            version: parsed.version, 
+            path: item.path,
+            fullTitle: parsed.fullTitle
           });
-        }
-      );
+        });
+        
+        // 按序号排序并转换为数组
+        let groupsArray = Object.keys(groups)
+          .sort((a, b) => parseInt(a) - parseInt(b))
+          .map(seq => ({
+            seq,
+            baseTitle: groups[seq].baseTitle,
+            versions: groups[seq].versions
+          }));
+          
+        const container = document.getElementById('pdfContainer');
+        // 移除加载指示器
+        const loadingIndicator = document.getElementById('loading');
+        loadingIndicator.remove();
+        
+        groupsArray.forEach(group => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.setAttribute('tabindex', '0');
+          
+          const title = document.createElement('h2');
+          title.textContent = group.baseTitle;
+          card.appendChild(title);
+          
+          card.addEventListener('click', (e) => {
+            createRipple(e, card);
+            if (group.versions.length === 1) {
+              window.location.href = group.versions[0].path;
+            } else {
+              showModal(group.versions);
+            }
+          });
+          
+          container.appendChild(card);
+        });
+      })
+      .catch(error => {
+        console.error('Error loading manifest:', error);
+      });
+    
+    // 模态对话框逻辑
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalButtons = document.getElementById('modalButtons');
+    const modalCancel = document.getElementById('modalCancel');
+    
+    function showModal(versions) {
+      modalButtons.innerHTML = '';
+      versions.forEach(item => {
+        const btn = document.createElement('button');
+        btn.textContent = `打开乐谱（${item.version}）`;
+        btn.addEventListener('click', () => {
+          window.location.href = item.path;
+          hideModal();
+        });
+        modalButtons.appendChild(btn);
+      });
+      modalOverlay.classList.add('active');
     }
-
-    // ---------------------------
-    // 5. 加载并渲染 PDF
-    // ---------------------------
-    async function loadPDF(index) {
-      if (!songList[index]) return;
-      currentIndex = index;
-      const song = songList[index];
-      // 根据曲目文件情况确定默认模式：若存在五线谱则优先显示，否则显示简谱
-      if (!song.wuXianPath && song.jianPuPath) {
-        currentNotation = "jianPu";
-      } else {
-        currentNotation = "wuXian";
-      }
-      updateToggleBtnVisibility(song);
-      updateProgress(0);
-      try {
-        if (currentPDF && typeof currentPDF.destroy === "function") {
-          currentPDF.destroy();
-        }
-        const path =
-          currentNotation === "wuXian" ? song.wuXianPath : song.jianPuPath;
-        if (!path) {
-          throw new Error("对应的乐谱文件不存在");
-        }
-        const loadingTask = pdfjsLib.getDocument(path);
-        currentPDF = await loadingTask.promise;
-        const container = document.getElementById("viewerContainer");
-        container.innerHTML = "";
-        for (let pageNum = 1; pageNum <= currentPDF.numPages; pageNum++) {
-          updateProgress((pageNum / currentPDF.numPages) * 90);
-          const page = await currentPDF.getPage(pageNum);
-          await renderPage(page, container);
-        }
-        updateProgress(100);
-      } catch (error) {
-        console.error("PDF加载失败:", error);
-        showError("PDF加载失败，请检查文件路径或浏览器安全设置。");
-        updateProgress(0);
-      }
+    
+    function hideModal() {
+      modalOverlay.classList.remove('active');
     }
-
-    // 渲染单页
-    async function renderPage(page, container) {
-      const viewport = page.getViewport({ scale: currentScale });
-      const wrapper = document.createElement("div");
-      wrapper.className = "pdfPage";
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-      wrapper.appendChild(canvas);
-      container.appendChild(wrapper);
-      await page.render({ canvasContext: context, viewport: viewport }).promise;
-    }
-
-    // ---------------------------
-    // 6. 功能函数：缩放、切换、导航
-    // ---------------------------
-    // 缩放控制：调整缩放比例后重新加载PDF
-    function adjustZoom(factor) {
-      const newScale = Math.min(Math.max(currentScale * factor, 0.5), 3);
-      if (newScale !== currentScale) {
-        currentScale = newScale;
-        if (currentPDF) loadPDF(currentIndex);
-      }
-    }
-
-    // 切换乐谱类型：在简谱与五线谱间切换
-    function toggleNotation() {
-      currentNotation = currentNotation === "wuXian" ? "jianPu" : "wuXian";
-      loadPDF(currentIndex);
-    }
-
-    // 根据当前曲目判断是否显示切换按钮
-    function updateToggleBtnVisibility(song) {
-      const toggleBtn = document.getElementById("toggleNotation");
-      if (song.wuXianPath && song.jianPuPath) {
-        toggleBtn.style.display = "flex";
-        toggleBtn.textContent =
-          currentNotation === "wuXian" ? "切五→简" : "切简→五";
-      } else {
-        toggleBtn.style.display = "none";
-      }
-    }
-
-    // 上一首
-    function prevSong() {
-      if (currentIndex > 0) loadPDF(currentIndex - 1);
-    }
-    // 下一首
-    function nextSong() {
-      if (currentIndex < songList.length - 1) loadPDF(currentIndex + 1);
-    }
-
-    // 切换导航面板显示状态
-    function toggleNav() {
-      const panel = document.getElementById("navPanel");
-      if (panel.style.left === "0px" || panel.style.left === "0") {
-        panel.style.left = `-${panel.offsetWidth}px`;
-      } else {
-        panel.style.left = "0px";
-      }
-    }
-
-    // ---------------------------
-    // 7. 辅助函数：进度条、错误提示
-    // ---------------------------
-    // 更新顶部进度条
-    function updateProgress(percentage) {
-      document.getElementById("loadingProgress").style.width = `${percentage}%`;
-      if (percentage >= 100) {
-        setTimeout(() => updateProgress(0), 500);
-      }
-    }
-
-    // 显示错误提示信息
-    function showError(message) {
-      const errorDiv = document.getElementById("errorMsg");
-      errorDiv.textContent = message;
-      setTimeout(() => {
-        // 若想保留错误提示，可去掉此 setTimeout
-        errorDiv.textContent = "";
-      }, 4000);
-    }
+    
+    modalCancel.addEventListener('click', hideModal);
+    modalOverlay.addEventListener('click', (e) => {
+      if(e.target === modalOverlay) { hideModal(); }
+    });
   </script>
 </body>
 </html>
